@@ -11,8 +11,11 @@ and agree on one state using the **Raft** consensus algorithm (implemented in th
 repository). Every operation is signed with the user's **Ed25519** private key,
 which never leaves the user's wallet.
 
-> Verification documents (Polish): [results/weryfikacja-systemu.pdf](results/weryfikacja-systemu.pdf)
-> and the glossary [results/slownik-pojec.md](results/slownik-pojec.md).
+> Documentation for users (Polish), in [results/](results/):
+> * [instrukcja-obslugi.md](results/instrukcja-obslugi.md) – **user manual**: installation, every tab of
+>   the application step by step, troubleshooting,
+> * [weryfikacja-systemu.pdf](results/weryfikacja-systemu.pdf) – how each requirement is met and tested,
+> * [slownik-pojec.md](results/slownik-pojec.md) – glossary of technical terms.
 
 ---
 
@@ -29,7 +32,8 @@ python manage.py app        # 3. open the desktop application
 ```
 
 In the application open **Users & keys → "Create Alice, Bob and Charlie"**.
-Everything is ready for the demonstration.
+Everything is ready for the demonstration. How to use the application is described in the
+user manual [results/instrukcja-obslugi.md](results/instrukcja-obslugi.md).
 
 Other commands:
 
@@ -129,7 +133,7 @@ sellart/
     ui/                   desktop application (one file per tab)
 verifier/verify_chain.py  independent verifier (does not import sellart)
 tests/acceptance_test.py  automated T1–T14
-results/                  verification document and glossary (Polish)
+results/                  user manual, verification document and glossary (Polish)
 ```
 
 ## 4. Node HTTP API
