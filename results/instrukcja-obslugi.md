@@ -2,6 +2,13 @@
 
 Sellart to aplikacja do zarządzania **biletami własności dzieł sztuki** w galerii. Administrator galerii wystawia bilet po zakupie dzieła, klienci mogą bilety między sobą sprzedawać, a na końcu spieniężyć je po aktualnej cenie dzieła. Wszystkie operacje są zapisywane w łańcuchu bloków (blockchainie) przechowywanym przez trzy niezależne węzły.
 
+W systemie są dwa rodzaje kont:
+
+| Konto | Kto je zakłada | Co może |
+|---|---|---|
+| **Klient** (np. Alice, Bob, Charlie) | sam klient – rejestracja w oknie logowania | przeglądać swoje bilety i wszystkie bilety galerii, przekazywać i spieniężać własne bilety |
+| **Gallery Admin** (administrator galerii) | tworzone poleceniem `reset` | wystawiać nowe bilety, zmieniać ceny, przeglądać klientów, nadzorować węzły i łańcuch bloków |
+
 Napisy w aplikacji są po angielsku – ich tłumaczenia zawiera [słownik pojęć](slownik-pojec.md).
 
 ---
@@ -24,39 +31,64 @@ pip install -r requirements.txt
 
 | Krok | Polecenie | Co się dzieje |
 |---|---|---|
-| 1 | `python manage.py reset` | Tworzy czyste środowisko: usuwa dane węzłów i portfele, generuje nowy klucz administratora galerii. Wykonuj tylko wtedy, gdy chcesz zacząć od zera. |
+| 1 | `python manage.py reset` | Tworzy czyste środowisko: usuwa dane węzłów i wszystkie konta, tworzy konto **Gallery Admin**. Program poprosi dwukrotnie o **hasło administratora** – zapamiętaj je. Wykonuj tylko wtedy, gdy chcesz zacząć od zera. |
 | 2 | `python manage.py cluster` | Uruchamia trzy węzły A, B i C. W systemie Windows każdy otwiera się w osobnym oknie konsoli – **nie zamykaj tych okien**, dopóki pracujesz z systemem. |
-| 3 | `python manage.py app` | Otwiera aplikację. |
+| 3 | `python manage.py app` | Otwiera okno logowania aplikacji. |
 
-Przy kolejnym uruchomieniu (bez czyszczenia danych) wystarczą kroki 2 i 3 – węzły wczytają swoje łańcuchy z dysku.
+Przy kolejnym uruchomieniu (bez czyszczenia danych) wystarczą kroki 2 i 3 – węzły wczytają swoje łańcuchy z dysku, a konta pozostają.
 
-**Zakończenie pracy:** zamknij aplikację, a następnie okna węzłów (albo zatrzymaj węzły przyciskami *Stop* w zakładce *Network & nodes*).
+**Zakończenie pracy:** wyloguj się (zamknij okna użytkowników), zamknij okno logowania, a następnie okna węzłów.
 
 **Powrót do czystego stanu:** zatrzymaj wszystkie węzły i wykonaj ponownie `python manage.py reset`. Polecenie odmówi działania, jeśli któryś węzeł nadal pracuje.
 
 ---
 
-## 4. Okno aplikacji
+## 4. Okno logowania i rejestracja
+
+Po uruchomieniu aplikacji pojawia się okno **Sellart - sign in**.
+
+### Rejestracja nowego klienta
+
+1. W ramce **New client account** wpisz nazwę użytkownika (*User name*), hasło (*Password*, co najmniej 4 znaki) i powtórz je (*Repeat password*).
+2. Kliknij **Register and sign in**.
+
+Aplikacja generuje na tym komputerze parę kluczy klienta. **Klucz prywatny** zapisuje w pliku portfela, **zaszyfrowany hasłem**. Do węzłów trafia wyłącznie **klucz publiczny** i nazwa (operacja `REGISTER_USER`). Po udanej rejestracji od razu otwiera się okno klienta. Jeśli nazwa jest już zajęta albo węzły nie działają, rejestracja zostaje odrzucona i można spróbować ponownie.
+
+### Logowanie
+
+1. W ramce **Sign in** wybierz konto (*Account*) i wpisz hasło.
+2. Kliknij **Sign in** (albo naciśnij Enter).
+
+Konto administratora jest oznaczone na liście jako *(gallery administrator)*.
+
+### Kilka osób naraz
+
+Każde zalogowanie otwiera **osobne okno** danego użytkownika, a okno logowania pozostaje otwarte. Dzięki temu na jednym komputerze można prowadzić pokaz z oknami Alice, Boba, Charliego i administratora jednocześnie. W normalnym użyciu każda osoba uruchamia aplikację na swoim komputerze, ze swoim portfelem.
+
+> **Hasła nie da się odzyskać** – klucz prywatny jest nim zaszyfrowany. Nie usuwaj i nie udostępniaj plików portfela: utrata pliku lub hasła oznacza utratę dostępu do biletów.
+
+---
+
+## 5. Wspólne elementy okna użytkownika
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│ Read state from: [Auto ▾]   Send operations via: [Auto ▾]   Cluster: A: leader | B: follower | C: follower │
-├──────────────────────────────────────────────────────────────────────┤
-│ Assets │ Operations │ Users & keys │ Security tests │ Network & nodes │ Blockchain │
-│                                                                      │
-│                       zawartość wybranej zakładki                     │
-│                                                                      │
-├──────────────────────────────────────────────────────────────────────┤
-│ Operation results:  SUCCESS  TRANSFER … by Alice -> Bob               │
-│ czas │ operacja │ węzeł │ wynik │ komunikat                           │
-└──────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│ Signed in as Alice (client) │ Read state from: [Auto ▾] │ Send operations via: [Auto ▾] │ Cluster: A: leader | B: follower | C: follower │ [Sign out] │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ zakładki (inne dla klienta, inne dla administratora)                              │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ Operation results:  SUCCESS  TRANSFER … by Alice -> Bob                           │
+│ czas │ operacja │ węzeł │ wynik │ komunikat                                       │
+└─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 **Pasek u góry**
 
-- **Read state from** – z którego węzła aplikacja odczytuje dane. *Auto* oznacza pierwszy dostępny węzeł.
-- **Send operations via** – do którego węzła aplikacja wysyła operacje. *Auto* oznacza pierwszy dostępny węzeł.
+- **Signed in as** – kto jest zalogowany w tym oknie (i początek jego klucza publicznego).
+- **Read state from** – z którego węzła okno odczytuje dane. *Auto* oznacza pierwszy dostępny węzeł.
+- **Send operations via** – do którego węzła okno wysyła operacje. *Auto* oznacza pierwszy dostępny węzeł.
 - **Cluster** – stan węzłów: rola (*leader* – lider, *follower* – pozostałe) albo *offline*, gdy węzeł nie działa.
+- **Sign out** – wylogowanie i zamknięcie okna (odszyfrowany klucz prywatny zostaje usunięty z pamięci).
 
 **Panel wyników (na dole)** – każda operacja kończy się jednym z wyników:
 
@@ -70,76 +102,89 @@ Dane w oknie odświeżają się samoczynnie co 2 sekundy.
 
 ---
 
-## 5. Pierwsze kroki: użytkownicy
+## 6. Okno klienta
 
-Zakładka **Users & keys**.
+### Zakładka My assets – moje bilety
 
-1. Wpisz nazwę w pole *Name* i kliknij **Create user**. Do pokazu możesz od razu kliknąć **Create Alice, Bob and Charlie**.
-2. W panelu wyników pojawi się `SUCCESS – REGISTER_USER …`.
+- **Tickets you own** – tabela biletów zalogowanego klienta (aktywnych i spieniężonych) z podsumowaniem: liczba aktywnych biletów i ich łączna aktualna wartość.
+- **Kliknięcie wiersza** pokazuje poniżej pełny stan biletu (*Current state of the asset*) i jego historię (*History*), a także wybiera ten bilet w formularzach po prawej.
 
-Przy tworzeniu użytkownika aplikacja generuje na tym komputerze jego parę kluczy. **Klucz prywatny** trafia tylko do pliku portfela użytkownika (kolumna *Private key stored in*, przycisk **Open wallet folder** otwiera katalog). Węzły otrzymują wyłącznie **klucz publiczny**. Tabela *Users registered on the blockchain* pokazuje, co znają węzły.
+**Przekazanie / sprzedaż – transfer()**
 
-Konto **Gallery Admin** (administrator galerii) powstaje automatycznie przy `reset`.
+1. *Asset* – wybierz swój bilet (lista zawiera Twoje aktywne bilety; można też wkleić identyfikator dowolnego biletu).
+2. *Recipient* – nowy właściciel.
+3. Kliknij **Transfer**.
 
-> Nie usuwaj ani nie udostępniaj plików portfela: kto ma plik, ten może podpisywać operacje w imieniu użytkownika; kto go straci, nie odzyska dostępu do swoich biletów.
+Operacja jest podpisywana Twoim kluczem prywatnym. Węzły przyjmą ją tylko wtedy, gdy jesteś aktualnym właścicielem biletu.
 
----
+**Spieniężenie – redeem()**
 
-## 6. Operacje na biletach
-
-Zakładka **Operations**. W każdej ramce pole **Acting user (signs)** wskazuje, czyim kluczem prywatnym zostanie podpisana operacja – czyli kto ją wykonuje.
-
-### Wystawienie biletu – issue()
-
-Wykonuje administrator galerii po sprzedaży dzieła.
-
-1. Uzupełnij: *Artwork title* (tytuł), *Original author* (autor), *Accepted by gallery on* (data przyjęcia dzieła), *Price* (cena w PLN), *Owner (buyer)* (nabywca).
-2. Kliknij **Issue ownership ticket**.
-
-Nowy bilet ma status `ACTIVE` i pojawia się w zakładce *Assets*. Identyfikator (uuid) nadaje system.
-
-### Sprzedaż / przekazanie – transfer()
-
-1. *Asset* – wybierz bilet z listy (albo wklej jego identyfikator).
-2. *Acting user* – aktualny właściciel.
-3. *Recipient* – nowy właściciel.
-4. Kliknij **Transfer**.
-
-System przyjmie operację tylko wtedy, gdy podpisuje ją aktualny właściciel.
-
-### Spieniężenie – redeem()
-
-1. *Asset* – bilet, *Acting user* – właściciel.
+1. *Asset* – wybierz swój bilet.
 2. Kliknij **Redeem (cash out at the current price)**.
 
-Status zmienia się na `REDEEMED`, a wypłacona kwota (aktualna cena) jest zapisywana w danych biletu. **Spieniężonego biletu nie można już przekazać ani spieniężyć ponownie.**
+Status zmienia się na `REDEEMED`, a wypłacona kwota (aktualna cena dzieła) jest zapisywana w danych biletu. **Spieniężonego biletu nie można już przekazać ani spieniężyć ponownie**; nadal widnieje on jako Twój.
 
-### Zmiana ceny – Revaluation
+### Zakładka Browse assets – wszystkie bilety
 
-Wykonuje administrator galerii (np. po wycenie dzieła).
+Łańcuch bloków jest jawny, więc każdy może sprawdzić stan dowolnego biletu.
 
-1. *Asset* – bilet, *New price* – nowa cena.
+- Tabela zawiera wszystkie bilety galerii: tytuł, autora, właściciela, status, cenę, datę przyjęcia i identyfikator.
+- **Kliknij wiersz**, aby zobaczyć stan i historię biletu.
+- Aby sprawdzić konkretny bilet, wklej identyfikator w pole *Asset ID* i kliknij **Show state & history** albo **Read owner** (sam właściciel).
+
+### Zakładka My account – moje konto
+
+Pokazuje nazwę użytkownika, klucz publiczny (znany węzłom), **miejsce przechowywania klucza prywatnego** (plik portfela po stronie użytkownika), sposób jego ochrony (szyfrowanie hasłem) oraz to, czy konto jest zarejestrowane w blockchainie. Przycisk **Open wallet folder** otwiera katalog z portfelem.
+
+### Zakładka Security tests – pokaz zabezpieczeń
+
+Służy do demonstracji, jak system broni się przed nieuprawnionymi operacjami. Nie jest potrzebna w codziennej pracy.
+
+**Authorisation and replay**
+
+1. *Asset (any ID)* – dowolny bilet.
+2. *In the name of (payload.signer)* – w czyim imieniu ma być operacja (domyślnie: Ty).
+3. *Recipient* – odbiorca.
+4. *Signature* – **sign with MY private key** (Twoim kluczem) albo **no signature** (bez podpisu).
+5. **1. Prepare transfer** – przygotowuje operację i pokazuje ją po prawej stronie (dokładnie to, co trafi do węzła).
+6. **2. Send** – wysyła ją.
+7. **Send the SAME operation again (replay)** – wysyła ponownie dokładnie tę samą podpisaną operację; system ją odrzuci.
+
+Przykład: zalogowany Bob przygotowuje transfer biletu Alice „w imieniu Alice”. Bez podpisu → `REJECTED – missing signature`; z podpisem Boba → `REJECTED – invalid signature`. Tylko Alice, podpisując w swoim oknie, wykona transfer poprawnie.
+
+Dodatkowo: **Check signature locally** sprawdza podpis bez wysyłania, **Save to file… / Load from file…** zapisują i wczytują przygotowaną operację.
+
+**Conflicting operations** – przygotowuje dwie poprawnie podpisane przez Ciebie, ale wykluczające się operacje (ten sam Twój bilet do dwóch różnych osób) i wysyła je jednocześnie przez dwa różne węzły (**Send both at the same time**) albo osobno (**Send #1 only**, **Send #2 only**). System zawsze przyjmie dokładnie jedną z nich.
+
+---
+
+## 7. Okno administratora galerii
+
+### Zakładka Issue tickets – wystawianie biletów
+
+**Wystawienie biletu – issue()** (po sprzedaży dzieła):
+
+1. Uzupełnij: *Artwork title* (tytuł), *Original author* (autor), *Accepted by gallery on* (data przyjęcia dzieła), *Price* (cena w PLN), *Owner (buyer)* (nabywca – zarejestrowany klient).
+2. Kliknij **Issue ownership ticket**.
+
+Nowy bilet ma status `ACTIVE`, identyfikator (uuid) nadaje system. Bilet od razu pojawia się w zakładce *My assets* nabywcy.
+
+**Zmiana ceny – Revaluation** (np. po wycenie dzieła):
+
+1. *Asset* – aktywny bilet, *New price* – nowa cena.
 2. Kliknij **Set new price**.
 
-Cenę można zmieniać tylko dla biletów `ACTIVE`. Kwota wypłacana przy spieniężeniu jest zawsze równa aktualnej cenie.
+Kwota wypłacana przy spieniężeniu jest zawsze równa aktualnej cenie.
 
----
+### Zakładka Browse assets
 
-## 7. Przeglądanie biletów i historii
+Taka sama jak u klienta (punkt 6).
 
-Zakładka **Assets**.
+### Zakładka Clients – klienci
 
-- Tabela u góry zawiera wszystkie bilety: tytuł, autora, właściciela, status, cenę, datę przyjęcia i identyfikator.
-- **Kliknij wiersz**, aby zobaczyć poniżej pełny stan biletu (*Current state of the asset*) oraz jego historię (*History*): każdą operację z poprzednim właścicielem (*From*), odbiorcą (*To*), identyfikatorem operacji, numerem bloku i czasem.
-- Aby sprawdzić konkretny bilet, wklej jego identyfikator w pole *Asset ID* i kliknij **Show state & history** albo **Read owner** (sam właściciel).
+Lista użytkowników zarejestrowanych w blockchainie: nazwa, rola, liczba i wartość aktywnych biletów, klucz publiczny. Administrator **nie zakłada kont klientów i nie zna ich kluczy prywatnych**.
 
-Zakładka **Blockchain** pokazuje surowe bloki zapisane przez wybrany węzeł (wybierz węzeł i kliknij **Load blocks**; kliknięcie wiersza wyświetla pełną treść bloku).
-
----
-
-## 8. Węzły i sieć
-
-Zakładka **Network & nodes**.
+### Zakładka Network & nodes – węzły i sieć
 
 - **Tabela węzłów** – czy węzeł działa (*Online*), jego rola, liczba zatwierdzonych bloków i hash ostatniego bloku. Gdy wszystkie węzły są zsynchronizowane, mają tę samą liczbę bloków i ten sam hash.
 - **Start X / Stop X** – uruchamia lub zatrzymuje węzeł. System działa dalej, dopóki pracują co najmniej 2 z 3 węzłów. Ponownie uruchomiony węzeł sam pobiera brakujące bloki.
@@ -148,27 +193,28 @@ Zakładka **Network & nodes**.
 
 Wyłączanie węzłów i dzielenie sieci służą do pokazu odporności systemu; w zwykłej pracy wszystkie węzły powinny działać.
 
----
+### Zakładka Blockchain
 
-## 9. Zakładka Security tests (pokaz zabezpieczeń)
-
-Zakładka służy do demonstracji, jak system broni się przed nieuprawnionymi operacjami. Nie jest potrzebna w codziennej pracy.
-
-**Authorisation and replay**
-
-1. Wybierz bilet, właściciela (*On behalf of*) i odbiorcę.
-2. Wybierz rodzaj podpisu: własnym kluczem właściciela, bez podpisu albo kluczem innego użytkownika.
-3. **1. Prepare transfer** – przygotowuje operację i pokazuje ją po prawej stronie (dokładnie to, co trafi do węzła).
-4. **2. Send** – wysyła ją.
-5. **Send the SAME operation again (replay)** – wysyła ponownie dokładnie tę samą podpisaną operację; system ją odrzuci.
-
-Dodatkowo: **Check signature locally** sprawdza podpis bez wysyłania, **Save to file… / Load from file…** zapisują i wczytują przygotowaną operację.
-
-**Conflicting operations** – przygotowuje dwie poprawnie podpisane, ale wykluczające się operacje (ten sam bilet do dwóch różnych osób) i wysyła je jednocześnie przez dwa różne węzły (**Send both at the same time**) albo osobno (**Send #1 only**, **Send #2 only**). System zawsze przyjmie dokładnie jedną z nich.
+Pokazuje surowe bloki zapisane przez wybrany węzeł (wybierz węzeł i kliknij **Load blocks**; kliknięcie wiersza wyświetla pełną treść bloku).
 
 ---
 
-## 10. Weryfikacja bez aplikacji
+## 8. Typowe scenariusze
+
+| Zadanie | Kto | Gdzie |
+|---|---|---|
+| Założyć konto | klient | okno logowania → *New client account* |
+| Wystawić bilet po sprzedaży dzieła | administrator | *Issue tickets* → *issue()* |
+| Sprzedać bilet innemu klientowi | właściciel | *My assets* → *transfer()* |
+| Spieniężyć bilet | właściciel | *My assets* → *redeem()* |
+| Zmienić cenę dzieła | administrator | *Issue tickets* → *Revaluation* |
+| Sprawdzić właściciela i historię dowolnego biletu | każdy | *Browse assets* |
+| Sprawdzić, gdzie jest mój klucz prywatny | klient | *My account* |
+| Sprawdzić stan węzłów | administrator | *Network & nodes* |
+
+---
+
+## 9. Weryfikacja bez aplikacji
 
 Stan biletów można sprawdzić niezależnym programem, bez otwierania aplikacji (węzły muszą działać):
 
@@ -181,29 +227,33 @@ Program pobiera łańcuch z każdego węzła osobno, sprawdza wszystkie podpisy 
 
 ---
 
-## 11. Rozwiązywanie problemów
+## 10. Rozwiązywanie problemów
 
 | Objaw | Przyczyna i rozwiązanie |
 |---|---|
 | `Cluster configuration not found` przy starcie | Nie wykonano `python manage.py reset`. Wykonaj je raz przed pierwszym uruchomieniem. |
 | `Stop the running nodes first` przy `reset` | Węzły nadal działają. Zatrzymaj je (zamknij okna węzłów) i powtórz. |
+| `Wrong password.` przy logowaniu | Błędne hasło. Hasła nie da się odzyskać; administrator może jedynie wykonać `reset` (usuwa wszystkie dane). |
+| `No node is reachable` przy logowaniu lub rejestracji | Węzły nie działają – wykonaj `python manage.py cluster`. |
+| `Registration REJECTED: user name '…' is already taken` | Nazwa jest zajęta w blockchainie – wybierz inną. |
+| `an account named '…' already exists on this computer` | Na tym komputerze jest już portfel o tej nazwie – zaloguj się na nie zamiast rejestrować ponownie. |
 | W pasku *Cluster* wszystkie węzły `offline` | Węzły nie zostały uruchomione – wykonaj `python manage.py cluster`. |
 | Okno węzła zamyka się od razu | Port 8001–8003 jest zajęty przez inny program albo węzeł już działa. Uruchom węzeł w terminalu poleceniem `python manage.py node A`, aby zobaczyć komunikat błędu. |
-| `FAILED – no leader reachable…` / `no majority of nodes reachable…` | Wybrany węzeł nie ma kontaktu z pozostałymi (wyłączone węzły albo podział sieci). Uruchom brakujące węzły lub kliknij **Heal network**, ewentualnie wyślij operację przez inny węzeł. |
-| `REJECTED – … is not the current owner` | W polu *Acting user* wybrano osobę, która nie jest właścicielem biletu. |
+| `FAILED – no leader reachable…` / `no majority of nodes reachable…` | Wybrany węzeł nie ma kontaktu z pozostałymi (wyłączone węzły albo podział sieci). Uruchom brakujące węzły lub (administrator) kliknij **Heal network**, ewentualnie wyślij operację przez inny węzeł. |
+| `REJECTED – … is not the current owner` | Próbujesz przekazać lub spieniężyć bilet, który nie należy do Ciebie. |
 | `REJECTED – conflict …` | Bilet zmienił się od chwili przygotowania operacji (inna operacja była pierwsza). Odśwież dane i wykonaj operację ponownie. |
 | `REJECTED – asset is already REDEEMED` | Bilet został spieniężony – nie można go już przekazać ani spieniężyć. |
 | `REJECTED – replay detected` | Ta sama podpisana operacja została już wykonana. Przygotuj nową operację. |
-| Listy wyboru są puste | Brak użytkowników lub biletów – utwórz je w zakładkach *Users & keys* i *Operations*. |
+| Lista *Owner (buyer)* u administratora jest pusta | Żaden klient się jeszcze nie zarejestrował. |
 
 ---
 
-## 12. Gdzie są dane
+## 11. Gdzie są dane
 
 | Ścieżka | Zawartość |
 |---|---|
 | `runtime/cluster.json` | adresy węzłów i klucz publiczny administratora |
 | `runtime/node-A/node.db` (oraz `node-B`, `node-C`) | kopia łańcucha bloków danego węzła (SQLite) |
-| `runtime/client/wallets/*.json` | portfele użytkowników z kluczami prywatnymi |
+| `runtime/client/wallets/*.json` | portfele (konta) – klucz publiczny i **zaszyfrowany hasłem** klucz prywatny |
 
 Katalog `runtime/` nie jest zapisywany w repozytorium Git. Polecenie `reset` usuwa całą jego zawartość.

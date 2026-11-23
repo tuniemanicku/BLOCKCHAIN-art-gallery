@@ -26,14 +26,26 @@ Requirements: **Python 3.10+** (tested on 3.12, Windows 11).
 ```bash
 pip install -r requirements.txt
 
-python manage.py reset      # 1. clean state (deletes chains and wallets, new admin key)
+python manage.py reset      # 1. clean state; asks for the Gallery Admin password
 python manage.py cluster    # 2. start nodes A, B, C (three separate processes / windows)
 python manage.py app        # 3. open the desktop application
 ```
 
-In the application open **Users & keys → "Create Alice, Bob and Charlie"**.
-Everything is ready for the demonstration. How to use the application is described in the
-user manual [results/instrukcja-obslugi.md](results/instrukcja-obslugi.md).
+The application starts with a **sign-in window**. Register the clients there
+(**New client account** – e.g. Alice, Bob and Charlie, each with their own password) and
+sign in as **Gallery Admin** with the password chosen during `reset`. Every sign-in opens
+a separate window – the interface of that user. How to use the application is described
+in the user manual [results/instrukcja-obslugi.md](results/instrukcja-obslugi.md).
+
+### User interfaces
+
+| Account | Created by | Window tabs |
+|---|---|---|
+| **Client** (Alice, Bob, Charlie, …) | the client, in the sign-in window (registration) | *My assets* (own tickets, transfer, redeem), *Browse assets*, *Security tests*, *My account* |
+| **Gallery Admin** | `python manage.py reset` | *Issue tickets* (issue, revaluation), *Browse assets*, *Clients*, *Network & nodes*, *Blockchain* |
+
+Several users can be signed in at the same time from one sign-in window (convenient for
+the demonstration); in real use each person runs the application on their own computer.
 
 Other commands:
 
@@ -77,8 +89,9 @@ then run `python manage.py reset` again.
 * **State machine** (`sellart/ledger.py`) – each node computes users, assets and
   their history by replaying its committed blocks. The rules are deterministic,
   so identical chains always give identical state.
-* **Wallets** (`runtime/client/wallets/*.json`) – user-side key files. Nodes only
-  ever see public keys.
+* **Wallets** (`runtime/client/wallets/*.json`) – user-side account files. The private
+  key is encrypted with the user's password (scrypt + AES-256-GCM); signing in decrypts
+  it in memory only. Nodes only ever see public keys.
 
 ### Operations
 
@@ -128,9 +141,12 @@ sellart/
   node_server.py          HTTP API of a node
   launcher.py             starting nodes, resetting the environment
   client/
-    wallets.py            user-side key storage
+    wallets.py            user-side accounts: key pair encrypted with the password
     node_client.py        HTTP client with fail-over
-    ui/                   desktop application (one file per tab)
+    ui/                   desktop application
+      login_window.py     sign-in and registration
+      session_window.py   window of one signed-in user (client or admin tabs)
+      tab_*.py            one file per tab
 verifier/verify_chain.py  independent verifier (does not import sellart)
 tests/acceptance_test.py  automated T1–T14
 results/                  user manual, verification document and glossary (Polish)
@@ -163,5 +179,5 @@ results/                  user manual, verification document and glossary (Polis
 * The network partition is simulated inside the nodes: a node drops every
   node-to-node message to/from the blocked peers (both directions). The desktop
   application can still reach all nodes, as required by test T14.
-* Wallet files are stored unencrypted on the user side; in production they would
-  be protected with a passphrase or a hardware key.
+* A forgotten password cannot be recovered - the private key is encrypted with it.
+  For the Gallery Admin account the only remedy is `python manage.py reset`.

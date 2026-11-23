@@ -24,6 +24,7 @@ from sellart.client.wallets import create_wallet, find_wallet   # noqa: E402
 from sellart.config import ADMIN_WALLET_NAME, save_cluster_config  # noqa: E402
 from sellart.launcher import reset_environment                  # noqa: E402
 
+PASSWORD = "test-password"
 TEST_NODES = {"A": "http://127.0.0.1:9101", "B": "http://127.0.0.1:9102", "C": "http://127.0.0.1:9103"}
 processes = {}
 results = []
@@ -94,8 +95,8 @@ def set_partition(groups):
 # --------------------------------------------------------------------------
 def main():
     global client, admin
-    reset_environment()
-    admin = find_wallet(ADMIN_WALLET_NAME)
+    reset_environment(PASSWORD)
+    admin = find_wallet(ADMIN_WALLET_NAME).unlock(PASSWORD)
     config = save_cluster_config(admin.public_key, TEST_NODES)
     client = NodeClient(config)
     for node_id in TEST_NODES:
@@ -106,7 +107,7 @@ def main():
 
     users = {}
     for name in ("Alice", "Bob", "Charlie"):
-        users[name] = create_wallet(name)
+        users[name] = create_wallet(name, PASSWORD)
         result = client.submit(users[name].sign(ops.register_user_payload(users[name].public_key, name)))
         assert result.ok, result.message
     alice, bob, charlie = users["Alice"], users["Bob"], users["Charlie"]

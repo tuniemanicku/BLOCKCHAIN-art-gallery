@@ -1,7 +1,8 @@
-"""Security tests tab: signatures (T7), replay (T8) and conflicting operations (T13, T14).
+"""Security tests tab (clients): signatures (T7), replay (T8) and conflicting operations (T13, T14).
 
 Operations are prepared first and kept in memory, so the very same signed
 operation (same op_id, same signature) can be sent again or saved to a file.
+The only private key available here is the one of the logged-in user.
 """
 
 import json
@@ -26,14 +27,14 @@ from ... import operations as ops
 from ...crypto import verify_signature
 from .widgets import AssetPicker, ValuePicker, hint, run_in_background
 
-SIGN_AS_OWNER, NO_SIGNATURE, SIGN_AS_OTHER = range(3)
+SIGN_WITH_MY_KEY, NO_SIGNATURE = range(2)
 
 
 class SecurityTab(QWidget):
     def __init__(self, context):
         super().__init__()
         self.context = context
-        self.prepared = None            # operation for T7/T8
+        self.prepared = None             # operation for T7/T8
         self.conflicting = [None, None]  # two operations for T13/T14
 
         self.json_view = QPlainTextEdit()
@@ -65,24 +66,17 @@ class SecurityTab(QWidget):
     # =========================================================================
     def _authorisation_box(self) -> QGroupBox:
         self.auth_asset = AssetPicker()
-        self.auth_owner = ValuePicker()
+        self.auth_signer = ValuePicker()      # whose name goes into payload.signer
         self.auth_recipient = ValuePicker()
-        self.other_signer = ValuePicker()
 
         self.signature_mode = QButtonGroup(self)
         modes = QVBoxLayout()
-        for mode_id, text in [(SIGN_AS_OWNER, "signed with the owner's own private key"),
+        for mode_id, text in [(SIGN_WITH_MY_KEY, f"sign with MY private key ({self.context.wallet.name})"),
                               (NO_SIGNATURE, "no signature")]:
             button = QRadioButton(text)
             self.signature_mode.addButton(button, mode_id)
             modes.addWidget(button)
-        other_row = QHBoxLayout()
-        other_button = QRadioButton("signed with the private key of:")
-        self.signature_mode.addButton(other_button, SIGN_AS_OTHER)
-        other_row.addWidget(other_button)
-        other_row.addWidget(self.other_signer, 1)
-        modes.addLayout(other_row)
-        self.signature_mode.button(SIGN_AS_OWNER).setChecked(True)
+        self.signature_mode.button(SIGN_WITH_MY_KEY).setChecked(True)
 
         prepare = QPushButton("1. Prepare transfer")
         send = QPushButton("2. Send")
@@ -105,11 +99,14 @@ class SecurityTab(QWidget):
         buttons.addWidget(save, 2, 1)
         buttons.addWidget(load, 3, 1)
         self.signature_result = QLabel("")
+        self.signature_result.setWordWrap(True)
 
         box = QGroupBox("Authorisation and replay (T7, T8)")
         form = QFormLayout(box)
-        form.addRow("Asset:", self.auth_asset)
-        form.addRow("On behalf of (payload.signer):", self.auth_owner)
+        form.addRow(hint("Prepare a transfer in the name of any user (payload.signer) and choose how it "
+                         "is signed. Only the owner's own key produces an operation the nodes accept."))
+        form.addRow("Asset (any ID):", self.auth_asset)
+        form.addRow("In the name of (payload.signer):", self.auth_signer)
         form.addRow("Recipient:", self.auth_recipient)
         form.addRow("Signature:", modes)
         form.addRow(buttons)
@@ -118,22 +115,17 @@ class SecurityTab(QWidget):
 
     def prepare_transfer(self) -> None:
         asset_id, recipient = self.auth_asset.value(), self.auth_recipient.value()
-        owner = self._wallet(self.auth_owner.value())
+        signer = self.auth_signer.value()
         mode = self.signature_mode.checkedId()
-        other = self._wallet(self.other_signer.value())
-        if not (asset_id and recipient and owner):
-            self.signature_result.setText("Choose the asset, the owner and the recipient first.")
-            return
-        if mode == SIGN_AS_OTHER and other is None:
-            self.signature_result.setText("Choose whose key should sign.")
+        wallet = self.context.wallet
+        if not (asset_id and recipient and signer):
+            self.signature_result.setText("Choose the asset, the signer and the recipient first.")
             return
 
         def build():
             asset = self.context.current_asset(asset_id)
-            payload = ops.transfer_payload(owner.public_key, asset_id, asset["version"], recipient)
-            key = {SIGN_AS_OWNER: owner.private_key, NO_SIGNATURE: None,
-                   SIGN_AS_OTHER: other.private_key if other else None}[mode]
-            return ops.signed(payload, key)
+            payload = ops.transfer_payload(signer, asset_id, asset["version"], recipient)
+            return ops.signed(payload, wallet.private_key if mode == SIGN_WITH_MY_KEY else None)
 
         def prepared(operation):
             self.prepared = operation
@@ -148,9 +140,10 @@ class SecurityTab(QWidget):
             return
         operation = self.prepared
         payload = operation["payload"]
-        description = (f"{label} {payload['type']} {str(payload.get('asset_id'))[:8]} "
-                       f"(op {payload['op_id'][:8]}, signature: "
-                       f"{operation['signature'][:12] + '…' if operation['signature'] else 'none'})")
+        signature = operation["signature"][:12] + "…" if operation["signature"] else "none"
+        description = (f"{label} {payload['type']} {str(payload.get('asset_id'))[:8]} in the name of "
+                       f"{self.context.user_name(payload['signer'])} (op {payload['op_id'][:8]}, "
+                       f"signature: {signature})")
         self.context.execute(description, lambda: operation)
 
     def check_signature(self) -> None:
@@ -159,10 +152,10 @@ class SecurityTab(QWidget):
         payload, signature = self.prepared["payload"], self.prepared["signature"]
         signer = self.context.user_name(payload["signer"])
         if verify_signature(payload["signer"], payload, signature):
-            self.signature_result.setText(f"Signature is VALID for the signer's public key ({signer}).")
+            self.signature_result.setText(f"Signature is VALID for the public key of {signer}.")
         else:
-            self.signature_result.setText(f"Signature is NOT valid for the signer's public key "
-                                          f"({signer}) - the node will reject it.")
+            self.signature_result.setText(f"Signature is NOT valid for the public key of {signer} "
+                                          f"- the nodes will reject it.")
 
     def save_operation(self) -> None:
         if self.prepared is None:
@@ -186,7 +179,6 @@ class SecurityTab(QWidget):
     # =========================================================================
     def _conflict_box(self) -> QGroupBox:
         self.conflict_asset = AssetPicker()
-        self.conflict_owner = ValuePicker()
         self.recipients = [ValuePicker(), ValuePicker()]
         self.nodes = [ValuePicker(), ValuePicker()]
         node_items = [(f"node {n}", n) for n in self.context.config.node_ids]
@@ -208,10 +200,9 @@ class SecurityTab(QWidget):
 
         box = QGroupBox("Conflicting operations (T13, T14)")
         form = QFormLayout(box)
-        form.addRow(hint("Both transfers are signed by the owner and based on the same asset version. "
-                         "Each is valid alone, but only one can become part of the blockchain."))
-        form.addRow("Asset:", self.conflict_asset)
-        form.addRow("Owner (signs both):", self.conflict_owner)
+        form.addRow(hint("Two transfers of YOUR ticket, both signed by you and based on the same asset "
+                         "version. Each is valid alone, but only one can become part of the blockchain."))
+        form.addRow("Your asset:", self.conflict_asset)
         for number in range(2):
             row = QHBoxLayout()
             row.addWidget(self.recipients[number], 1)
@@ -229,21 +220,21 @@ class SecurityTab(QWidget):
 
     def prepare_conflict(self) -> None:
         asset_id = self.conflict_asset.value()
-        owner = self._wallet(self.conflict_owner.value())
         recipients = [picker.value() for picker in self.recipients]
-        if not (asset_id and owner and all(recipients)):
-            self.conflict_summary.setText("Choose the asset, the owner and both recipients first.")
+        wallet = self.context.wallet
+        if not (asset_id and all(recipients)):
+            self.conflict_summary.setText("Choose the asset and both recipients first.")
             return
 
         def build():
             asset = self.context.current_asset(asset_id)
-            return [owner.sign(ops.transfer_payload(owner.public_key, asset_id, asset["version"], r))
+            return [wallet.sign(ops.transfer_payload(wallet.public_key, asset_id, asset["version"], r))
                     for r in recipients]
 
         def prepared(operations):
             self.conflicting = operations
             self._show(operations)
-            lines = [f"#{i + 1}: {owner.name} -> {self.context.user_name(op['payload']['data']['recipient'])}"
+            lines = [f"#{i + 1}: {wallet.name} -> {self.context.user_name(op['payload']['data']['recipient'])}"
                      f"  (asset version {op['payload']['asset_version']}, op {op['payload']['op_id'][:8]})"
                      for i, op in enumerate(operations)]
             self.conflict_summary.setText("Prepared, not sent yet:\n" + "\n".join(lines))
@@ -263,17 +254,17 @@ class SecurityTab(QWidget):
 
     # =========================================================================
     def _update_pickers(self) -> None:
-        for picker in (self.auth_asset, self.conflict_asset):
-            picker.set_assets(self.context.assets)
-        wallets = [(w.name, w.name) for w in self.context.client_wallets]
-        for picker in (self.auth_owner, self.other_signer, self.conflict_owner):
-            picker.set_items(wallets)
+        self.auth_asset.set_assets(self.context.assets)
+        self.conflict_asset.set_assets([a for a in self.context.my_assets if a["status"] == ops.ACTIVE])
         clients = [(u["name"], u["public_key"]) for u in self.context.clients]
-        for picker in (self.auth_recipient, *self.recipients):
-            picker.set_items(clients)
-
-    def _wallet(self, name):
-        return next((w for w in self.context.wallets if w.name == name), None)
+        first_fill = self.auth_signer.count() == 0
+        self.auth_signer.set_items(clients)
+        if first_fill:
+            self.auth_signer.select_value(self.context.wallet.public_key)  # default: myself
+        self.auth_recipient.set_items(clients)
+        others = [(u["name"], u["public_key"]) for u in self.context.other_clients]
+        for picker in self.recipients:
+            picker.set_items(others)
 
     def _show(self, data) -> None:
         self.json_view.setPlainText(json.dumps(data, indent=2, ensure_ascii=False))

@@ -29,8 +29,12 @@ def running_nodes(cluster_config) -> list:
     return [node_id for node_id in cluster_config.node_ids if client.status(node_id)]
 
 
-def reset_environment() -> None:
-    """Delete all node data and wallets, then create a fresh admin key and cluster config."""
+def reset_environment(admin_password: str) -> None:
+    """Delete all node data and wallets, then create a fresh admin key and cluster config.
+
+    The admin wallet is encrypted with `admin_password`; user accounts are created later
+    by the users themselves (registration in the desktop application).
+    """
     from .config import cluster_file, load_cluster_config
 
     if cluster_file().exists():
@@ -40,9 +44,9 @@ def reset_environment() -> None:
 
     if runtime_dir().exists():
         shutil.rmtree(runtime_dir())
-    admin = create_wallet(ADMIN_WALLET_NAME)
+    admin = create_wallet(ADMIN_WALLET_NAME, admin_password)
     config = save_cluster_config(admin.public_key)
 
     print(f"Clean environment created in {runtime_dir()}")
-    print(f"  admin wallet : {admin.path}")
+    print(f"  admin account: '{ADMIN_WALLET_NAME}', wallet {admin.path}")
     print(f"  nodes        : {', '.join(f'{k}={v}' for k, v in config.nodes.items())}")

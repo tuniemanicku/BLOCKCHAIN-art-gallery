@@ -1,29 +1,31 @@
-"""Shared application context: node client, wallets, cached data and operation execution."""
+"""Session context: the logged-in user, node client, cached data and operation execution.
+
+Every session window (one per logged-in user) has its own context.
+"""
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from ...config import load_cluster_config
 from ..node_client import AUTO, NodeClient, OperationResult
-from ..wallets import load_wallets
 from .widgets import run_in_background
 
 REFRESH_INTERVAL_MS = 2000
 
 
 class AppContext(QObject):
-    """Everything the tabs share. Tabs listen to the signals to update themselves."""
+    """Everything the tabs of one session share. Tabs listen to the signals to update."""
 
-    data_changed = Signal()            # users / assets / wallets refreshed
+    data_changed = Signal()            # users / assets refreshed
     node_status_changed = Signal(dict)  # node id -> status dict (or None when offline)
     operation_finished = Signal(str, object)  # description, OperationResult
 
-    def __init__(self):
+    def __init__(self, wallet):
         super().__init__()
+        self.wallet = wallet        # UnlockedWallet of the logged-in user (signs operations)
         self.config = load_cluster_config()
         self.client = NodeClient(self.config)
         self.read_node = AUTO       # node used for reading state
         self.write_node = AUTO      # node used for sending operations
-        self.wallets = load_wallets()
         self.users = []             # registered on the chain: [{"name", "public_key", "is_admin"}]
         self.assets = []
         self.node_status = {}
@@ -35,17 +37,18 @@ class AppContext(QObject):
 
     # --- convenience lookups -----------------------------------------------
     @property
-    def admin_wallet(self):
-        return next((w for w in self.wallets if w.is_admin), None)
-
-    @property
-    def client_wallets(self) -> list:
-        return [w for w in self.wallets if not w.is_admin]
-
-    @property
     def clients(self) -> list:
         """Registered gallery clients (users that can own assets)."""
         return [u for u in self.users if not u["is_admin"]]
+
+    @property
+    def other_clients(self) -> list:
+        """Possible recipients of a transfer: every client except the logged-in user."""
+        return [u for u in self.clients if u["public_key"] != self.wallet.public_key]
+
+    @property
+    def my_assets(self) -> list:
+        return [a for a in self.assets if a["owner"] == self.wallet.public_key]
 
     def user_name(self, public_key: str) -> str:
         return next((u["name"] for u in self.users if u["public_key"] == public_key), "unknown")
@@ -69,7 +72,6 @@ class AppContext(QObject):
             self._refreshing = False
             status, users, assets = result
             self.node_status = status
-            self.wallets = load_wallets()
             if users is not None:
                 self.users, self.assets = users, assets
             self.node_status_changed.emit(status)
@@ -79,6 +81,9 @@ class AppContext(QObject):
             self._refreshing = False
 
         run_in_background(load, loaded, failed)
+
+    def stop(self) -> None:
+        self.timer.stop()
 
     # --- executing operations ------------------------------------------------
     def execute(self, description: str, build_operation, node: str = None, on_done=None) -> None:

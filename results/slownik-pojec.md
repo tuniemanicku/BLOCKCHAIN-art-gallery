@@ -2,6 +2,25 @@
 
 Tłumaczenia pojęć technicznych i angielskich napisów widocznych w aplikacji, z krótkim wyjaśnieniem znaczenia dla użytkownika.
 
+## Konta i okna aplikacji
+
+| Pojęcie (w aplikacji) | Tłumaczenie | Znaczenie |
+|---|---|---|
+| Sign in | zaloguj się | Otwarcie własnego okna po podaniu hasła (odszyfrowuje klucz prywatny). |
+| Sign out | wyloguj się | Zamknięcie okna użytkownika; odszyfrowany klucz zostaje usunięty z pamięci. |
+| New client account / Register and sign in | nowe konto klienta / zarejestruj i zaloguj | Samodzielne założenie konta przez klienta: wygenerowanie kluczy i rejestracja klucza publicznego w blockchainie. |
+| Account | konto | Użytkownik systemu (klient albo administrator galerii) wraz z jego portfelem. |
+| Password | hasło | Hasło szyfrujące klucz prywatny w portfelu; nie da się go odzyskać. |
+| Client | klient | Użytkownik, który może posiadać, przekazywać i spieniężać bilety. |
+| Signed in as | zalogowany jako | Kto pracuje w danym oknie. |
+| My assets | moje aktywa | Bilety należące do zalogowanego klienta wraz z operacjami transfer i redeem. |
+| Browse assets | przeglądaj aktywa | Wszystkie bilety galerii – stan i historia dowolnego biletu. |
+| My account | moje konto | Dane konta: klucz publiczny i miejsce przechowywania klucza prywatnego. |
+| Issue tickets | wystawianie biletów | Zakładka administratora do wystawiania biletów i zmiany cen. |
+| Clients | klienci | Zakładka administratora z listą zarejestrowanych użytkowników. |
+| Security tests | testy zabezpieczeń | Zakładka do pokazu odrzucania nieautoryzowanych, powtórzonych i konfliktujących operacji. |
+| In the name of (payload.signer) | w imieniu | Użytkownik, który według treści operacji ją autoryzuje. |
+
 ## Aktywa i operacje
 
 | Pojęcie (w aplikacji) | Tłumaczenie | Znaczenie |
@@ -22,7 +41,6 @@ Tłumaczenia pojęć technicznych i angielskich napisów widocznych w aplikacji,
 | redeem() / REDEEM | spieniężenie, wykorzystanie | Wymiana biletu na pieniądze po aktualnej cenie; status zmienia się na REDEEMED. |
 | Revaluation / SET_PRICE | przeszacowanie / zmiana ceny | Zmiana aktualnej ceny dzieła przez administratora galerii. |
 | REGISTER_USER | rejestracja użytkownika | Opublikowanie w systemie nazwy użytkownika i jego klucza publicznego. |
-| Acting user (signs) | działający użytkownik (podpisuje) | Osoba, której klucz prywatny podpisuje operację. |
 | Recipient | odbiorca | Użytkownik, który otrzyma bilet. |
 | History | historia | Chronologiczna lista operacji na aktywie odczytana z blockchaina. |
 | From (previous owner) / To (recipient) | od (poprzedni właściciel) / do (odbiorca) | Strony operacji zapisane w historii. |
@@ -45,7 +63,8 @@ Tłumaczenia pojęć technicznych i angielskich napisów widocznych w aplikacji,
 
 | Pojęcie | Tłumaczenie | Znaczenie |
 |---|---|---|
-| Wallet | portfel | Plik po stronie użytkownika z jego parą kluczy. Nigdy nie jest wysyłany do węzłów. |
+| Wallet | portfel | Plik po stronie użytkownika z jego parą kluczy; klucz prywatny jest w nim zaszyfrowany hasłem. Nigdy nie jest wysyłany do węzłów. |
+| Encryption (scrypt + AES-256-GCM) | szyfrowanie | Sposób ochrony klucza prywatnego: z hasła wyliczany jest klucz (scrypt), którym szyfruje się klucz prywatny (AES-GCM). |
 | Private key | klucz prywatny | Tajny klucz użytkownika; tylko nim można podpisać operację w jego imieniu. |
 | Public key | klucz publiczny | Jawny klucz, którym węzły sprawdzają podpisy; identyfikuje właściciela. |
 | Signature | podpis cyfrowy | Dowód, że operację zatwierdził posiadacz klucza prywatnego i że jej treść nie została zmieniona. |
@@ -56,7 +75,7 @@ Tłumaczenia pojęć technicznych i angielskich napisów widocznych w aplikacji,
 | Signer | podpisujący | Klucz publiczny osoby, która autoryzuje operację. |
 | Canonical JSON | kanoniczny JSON | Jednoznaczny zapis danych (posortowane klucze, bez spacji), dzięki któremu wszyscy liczą ten sam podpis i hash. |
 | Replay | atak powtórzeniowy | Ponowne wysłanie przechwyconej, poprawnie podpisanej operacji. |
-| Gallery Admin | administrator galerii | Konto uprawnione do wystawiania biletów i zmiany cen. Nie zna kluczy prywatnych klientów. |
+| Gallery Admin | administrator galerii | Konto tworzone przy `reset`, uprawnione do wystawiania biletów, zmiany cen i nadzoru nad węzłami. Nie zakłada kont klientów i nie zna ich kluczy prywatnych. |
 
 ## Blockchain i sieć węzłów
 

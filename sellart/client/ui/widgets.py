@@ -128,7 +128,9 @@ class ValuePicker(QComboBox):
     def set_items(self, items: list) -> None:
         if items == self._items:
             return
-        current_value, current_text = self.value(), self.currentText()
+        current_value = self.value()
+        # keep only text the user typed in (e.g. a pasted ID), never a label of an old item
+        typed_text = self.currentText() if self.findText(self.currentText()) < 0 else ""
         self._items = items
         self.blockSignals(True)
         self.clear()
@@ -138,7 +140,7 @@ class ValuePicker(QComboBox):
         if index >= 0:
             self.setCurrentIndex(index)
         elif self.isEditable():
-            self.setEditText(current_text)
+            self.setEditText(typed_text)
         self.blockSignals(False)
 
     def value(self):
@@ -206,3 +208,8 @@ def hint(text: str) -> QLabel:
     label.setWordWrap(True)
     label.setStyleSheet("color: #666;")
     return label
+
+
+def price_text(price) -> str:
+    """1500000 -> '1 500 000'."""
+    return f"{price:,}".replace(",", " ") if isinstance(price, int) else "-"
